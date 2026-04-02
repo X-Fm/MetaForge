@@ -1,4 +1,3 @@
-
 # Meta Forge v2.0
 EXIF | GPS | Device Metadata Injector
 
@@ -72,6 +71,26 @@ GitHub    : https://github.com/X-Fm/MetaForge
 ### Termux - All steps in one block (copy and paste)
 
     pkg update && pkg upgrade -y && pkg install python ffmpeg exiftool git -y && git clone https://github.com/X-Fm/MetaForge.git && cd MetaForge && pip install -r requirements.txt --break-system-packages && python meta_forge.py
+
+---
+
+### Termux - Global Install (run from anywhere)
+
+Step 1 - Make the script executable:
+
+    chmod +x meta_forge.py
+
+Step 2 - Copy to system PATH:
+
+    cp meta_forge.py $PREFIX/bin/metaforge
+
+Step 3 - Now run from anywhere:
+
+    metaforge
+
+Uninstall:
+
+    rm $PREFIX/bin/metaforge
 
 ---
 ---
@@ -154,3 +173,23 @@ For GPS auto-detect in Termux:
 ---
 
 Meta Forge v2.0 - FmIt | t.me/fmitofficial | github.com/X-Fm/MetaForge
+
+---
+
+### Linux - Global Install (run from anywhere)
+
+Step 1 - Make the script executable:
+
+    chmod +x meta_forge.py
+
+Step 2 - Copy to system PATH:
+
+    sudo cp meta_forge.py /usr/local/bin/metaforge
+
+Step 3 - Now run from anywhere:
+
+    metaforge
+
+Uninstall:
+
+    sudo rm /usr/local/bin/metaforge
