@@ -632,11 +632,38 @@ def main():
         lon = prompt("Longitude (e.g. 90.356):", "90.356")
         city_name = "Custom"
 
-    # ── Output folder ──
+    # ── Output folder (OS-based auto detect) ──
     section("Output Settings")
-    out_dir = prompt("Output folder [default: ./meta_output]:", "./meta_output")
-    os.makedirs(out_dir, exist_ok=True)
-    ok(f"Output → {out_dir}")
+
+    def detect_default_output():
+        # Termux detection
+        if os.path.exists("/data/data/com.termux") or "com.termux" in os.environ.get("PREFIX", ""):
+            sdcard = "/sdcard/meta_output"
+            return sdcard, "Termux (SDCard)"
+        # Linux / Ubuntu / Kali
+        return "./meta_output", "Linux"
+
+    default_out, platform_name = detect_default_output()
+    info(f"Platform detected: {platform_name}")
+    info(f"Default output  : {default_out}")
+    out_dir = prompt(f"Output folder [Enter = use default]:", default_out)
+    if not out_dir:
+        out_dir = default_out
+
+    try:
+        os.makedirs(out_dir, exist_ok=True)
+        ok(f"Output folder ready → {out_dir}")
+    except PermissionError:
+        warn(f"Permission denied: {out_dir}")
+        warn("Termux e SDCard access er jonno run korte hobe:")
+        warn("  termux-setup-storage")
+        fallback = "./meta_output"
+        os.makedirs(fallback, exist_ok=True)
+        out_dir = fallback
+        ok(f"Fallback folder → {out_dir}")
+    except Exception as e:
+        err(f"Folder error: {e}")
+        exit(1)
 
     now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
