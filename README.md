@@ -1,3 +1,4 @@
+
 # Meta Forge v2.0
 EXIF | GPS | Device Metadata Injector
 
@@ -20,74 +21,106 @@ GitHub    : https://github.com/X-Fm/MetaForge
 
 ---
 
-## Installation and Run
+## Supported File Types
+
+    Video : .mp4  .mov  .mkv
+    Image : .jpg  .jpeg  .png
+
+---
+---
+
+# TERMUX (Android)
 
 ---
 
-### Termux (Android)
-
-Step 1 - Update and install system packages:
+### Step 1 - Update Termux packages
 
     pkg update && pkg upgrade -y
-    pkg install python ffmpeg exiftool -y
 
-Step 2 - Install Python libraries:
+---
+
+### Step 2 - Install required packages
+
+    pkg install python ffmpeg exiftool git -y
+
+---
+
+### Step 3 - Clone the project from GitHub
+
+    git clone https://github.com/X-Fm/MetaForge.git
+
+---
+
+### Step 4 - Open the project folder
+
+    cd MetaForge
+
+---
+
+### Step 5 - Install Python requirements
 
     pip install -r requirements.txt --break-system-packages
 
-Step 3 - Run:
+---
+
+### Step 6 - Run the script
 
     python meta_forge.py
 
 ---
 
-### Linux (Debian / Kali)
+### Termux - All steps in one block (copy and paste)
 
-Step 1 - Install system packages:
+    pkg update && pkg upgrade -y && pkg install python ffmpeg exiftool git -y && git clone https://github.com/X-Fm/MetaForge.git && cd MetaForge && pip install -r requirements.txt --break-system-packages && python meta_forge.py
 
-    sudo apt update
-    sudo apt install python3 python3-pip ffmpeg libimage-exiftool-perl -y
+---
+---
 
-Step 2 - Install Python libraries:
+# LINUX (Debian / Ubuntu / Kali)
+
+---
+
+### Step 1 - Update system packages
+
+    sudo apt update && sudo apt upgrade -y
+
+---
+
+### Step 2 - Install required packages
+
+    sudo apt install python3 python3-pip ffmpeg libimage-exiftool-perl git -y
+
+---
+
+### Step 3 - Clone the project from GitHub
+
+    git clone https://github.com/X-Fm/MetaForge.git
+
+---
+
+### Step 4 - Open the project folder
+
+    cd MetaForge
+
+---
+
+### Step 5 - Install Python requirements
 
     pip3 install -r requirements.txt
 
-Step 3 - Run:
+---
+
+### Step 6 - Run the script
 
     python3 meta_forge.py
 
 ---
 
-### Ubuntu (22.04 / 24.04)
+### Linux - All steps in one block (copy and paste)
 
-Step 1 - Install system packages:
-
-    sudo apt update
-    sudo apt install python3 python3-pip python3-venv ffmpeg libimage-exiftool-perl -y
-
-Step 2 - (Recommended) Use virtual environment:
-
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-
-Step 3 - Run:
-
-    python3 meta_forge.py
-
-To deactivate venv later:
-
-    deactivate
+    sudo apt update && sudo apt upgrade -y && sudo apt install python3 python3-pip ffmpeg libimage-exiftool-perl git -y && git clone https://github.com/X-Fm/MetaForge.git && cd MetaForge && pip3 install -r requirements.txt && python3 meta_forge.py
 
 ---
-
-## Clone from GitHub
-
-    git clone https://github.com/X-Fm/MetaForge.git
-    cd MetaForge
-
-Then follow the installation steps above for your platform.
-
 ---
 
 ## Output File Naming
@@ -99,42 +132,11 @@ Output files are saved in ./meta_output/ folder by default.
 
 ---
 
-## Supported File Types
-
-    Video : .mp4  .mov  .mkv
-    Image : .jpg  .jpeg  .png
-
----
-
-## Requirements
-
-    Tool        Purpose                         Install
-    ---------   ---------------------------     -----------------------------------
-    python3     Run the script                  pkg install python
-    ffmpeg      Video encode + metadata         pkg install ffmpeg
-    exiftool    EXIF/metadata injection         pkg install exiftool
-    Pillow      Image fallback processing       pip install Pillow
-    piexif      EXIF write for images           pip install piexif
-
----
-
-## Quick One-Line Setup
-
-Termux:
-
-    pkg update -y && pkg install python ffmpeg exiftool -y && pip install Pillow piexif --break-system-packages
-
-Linux / Ubuntu / Kali:
-
-    sudo apt update && sudo apt install python3 python3-pip ffmpeg libimage-exiftool-perl -y && pip3 install Pillow piexif
-
----
-
 ## Notes
 
 - If exiftool is not installed, the script falls back to Pillow + piexif for images.
 - If ffmpeg is not installed, the script copies the original video and applies exiftool only.
-- GPS auto-detection requires termux-api package and the Termux:API app on Android.
+- GPS auto-detection requires termux-api package and Termux:API app on Android.
 - If GPS fails, the script automatically detects location via network (IP-based).
 
 For GPS auto-detect in Termux:
