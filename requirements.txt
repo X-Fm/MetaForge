@@ -1,0 +1,15 @@
+# ─────────────────────────────────────────────
+# Meta Forge — Python Requirements
+# Developer : FmIt | https://t.me/fmitofficial
+# ─────────────────────────────────────────────
+
+# Image EXIF read/write
+Pillow>=10.0.0
+piexif>=1.1.3
+
+# ─────────────────────────────────────────────
+# System packages (install separately):
+#
+# Termux  : pkg install ffmpeg exiftool python
+# Linux   : sudo apt install ffmpeg libimage-exiftool-perl python3
+# ─────────────────────────────────────────────
