@@ -7,6 +7,9 @@
 Pillow>=10.0.0
 piexif>=1.1.3
 
+# GPS timezone detection
+timezonefinder>=6.2.0
+
 # ─────────────────────────────────────────────
 # System packages (install separately):
 #
