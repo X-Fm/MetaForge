@@ -145,7 +145,7 @@ def banner():
 ║  ██╔████╔██║█████╗     ██║   ███████║                 ║
 ║  ██║╚██╔╝██║██╔══╝     ██║   ██╔══██║                 ║
 ║  ██║ ╚═╝ ██║███████╗   ██║   ██║  ██║                 ║
-║  ╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝  FORGE v2.0   ║
+║  ╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝  FORGE v2.1   ║
 ╠══════════════════════════════════════════════════════╣
 ║       EXIF • GPS • Device Metadata Injector          ║
 ╠══════════════════════════════════════════════════════╣
@@ -308,51 +308,61 @@ def random_city():
     return lat, lon, city
 
 def get_auto_gps():
-    try:
-        result = subprocess.run(["termux-location"], capture_output=True, text=True, timeout=8)
-        if result.returncode == 0:
-            data = json.loads(result.stdout)
-            return str(data["latitude"]), str(data["longitude"]), "Auto"
-    except:
-        pass
+    """Try termux-location with multiple providers"""
+    for provider in ["gps", "network", "passive"]:
+        try:
+            result = subprocess.run(
+                ["termux-location", "-p", provider, "-r", "once"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                data = json.loads(result.stdout)
+                lat = str(data.get("latitude", ""))
+                lon = str(data.get("longitude", ""))
+                if lat and lon and lat != "0.0":
+                    ok(f"GPS ({provider}): {lat}, {lon}")
+                    return lat, lon, "GPS Auto"
+        except:
+            pass
     return None, None, None
 
 def get_network_location():
-    """Fallback: detect country via public IP geolocation API"""
-    try:
-        result = subprocess.run(
-            ["curl", "-s", "--max-time", "5", "https://ipapi.co/json/"],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
+    """Multi-API IP-based location fallback"""
+    apis = [
+        ("https://ipapi.co/json/",      "latitude",  "longitude",  "city", "country_name"),
+        ("https://ip-api.com/json/",    "lat",       "lon",        "city", "country"),
+        ("https://ipinfo.io/json",      None,        None,         "city", "country"),
+    ]
+    for url, lat_key, lon_key, city_key, country_key in apis:
+        try:
+            result = subprocess.run(
+                ["curl", "-s", "--max-time", "6", "-A",
+                 "Mozilla/5.0 (Linux; Android 13)", url],
+                capture_output=True, text=True
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                continue
             data = json.loads(result.stdout)
-            lat  = str(data.get("latitude", ""))
-            lon  = str(data.get("longitude", ""))
-            city = data.get("city", "")
-            country = data.get("country_name", "")
-            if lat and lon:
-                label = f"{city}, {country}" if city else country
+
+            # ipinfo returns loc as "lat,lon"
+            if lat_key is None and "loc" in data:
+                parts = data["loc"].split(",")
+                if len(parts) == 2:
+                    lat, lon = parts[0].strip(), parts[1].strip()
+                else:
+                    continue
+            else:
+                lat = str(data.get(lat_key, ""))
+                lon = str(data.get(lon_key, ""))
+
+            city    = data.get(city_key, "")
+            country = data.get(country_key, "")
+
+            if lat and lon and lat not in ("", "0", "0.0"):
+                label = f"{city}, {country}".strip(", ")
                 return lat, lon, label
-    except:
-        pass
-    # second fallback
-    try:
-        result = subprocess.run(
-            ["curl", "-s", "--max-time", "5", "https://ip-api.com/json/"],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            data = json.loads(result.stdout)
-            if data.get("status") == "success":
-                lat = str(data.get("lat", ""))
-                lon = str(data.get("lon", ""))
-                city = data.get("city", "")
-                country = data.get("country", "")
-                if lat and lon:
-                    label = f"{city}, {country}" if city else country
-                    return lat, lon, label
-    except:
-        pass
+        except:
+            pass
     return None, None, None
 
 # ─────────────────────────────────────────────
@@ -367,16 +377,51 @@ def process_video(file_path, brand, model, lat, lon, output_path, tools, now):
     bar.update(5, duration=0.2)
 
     if tools["ffmpeg"]:
+        # Detect input video bitrate to match output
+        probe_cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json",
+            "-show_streams", "-show_format", file_path
+        ]
+        probe = subprocess.run(probe_cmd, capture_output=True, text=True)
+        orig_bitrate = "8000k"
+        orig_audio_bitrate = "192k"
+        try:
+            pdata = json.loads(probe.stdout)
+            fmt_bitrate = int(pdata.get("format", {}).get("bit_rate", 0))
+            if fmt_bitrate > 0:
+                # keep original bitrate, min 6mbps max 20mbps
+                vbr = max(6000, min(20000, fmt_bitrate // 1000))
+                orig_bitrate = f"{vbr}k"
+            for stream in pdata.get("streams", []):
+                if stream.get("codec_type") == "audio":
+                    abr = int(stream.get("bit_rate", 192000)) // 1000
+                    orig_audio_bitrate = f"{max(128, min(320, abr))}k"
+        except:
+            pass
+
         cmd = [
             "ffmpeg", "-y", "-i", file_path,
             "-map_metadata", "-1",
-            "-c:v", "libx264", "-profile:v", "high", "-level", "4.1",
-            "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "22",
-            "-c:a", "aac", "-b:a", "128k",
+            # Video: high quality, match original resolution
+            "-c:v", "libx264",
+            "-profile:v", "high",
+            "-level", "4.2",
+            "-pix_fmt", "yuv420p",
+            "-preset", "slow",
+            "-crf", "16",
+            "-b:v", orig_bitrate,
+            "-maxrate", orig_bitrate,
+            "-bufsize", f"{int(orig_bitrate[:-1])*2}k",
+            "-movflags", "+faststart",
+            # Audio: high quality
+            "-c:a", "aac",
+            "-b:a", orig_audio_bitrate,
+            "-ar", "48000",
+            "-ac", "2",
+            # Metadata — natural, no encoder/composer
             "-metadata", f"make={brand}",
             "-metadata", f"model={model}",
             "-metadata", f"creation_time={now}",
-            "-metadata", f"encoder={brand} {model}",
             "-metadata", f"location={lat},{lon}",
             "-metadata", f"com.apple.quicktime.location.ISO6709=+{lat}+{lon}/",
             "-metadata:s:v:0", "handler_name=VideoHandle",
@@ -427,6 +472,87 @@ def process_video(file_path, brand, model, lat, lon, output_path, tools, now):
 # ─────────────────────────────────────────────
 # 🖼️ IMAGE Processing (exiftool preferred + PIL fallback)
 # ─────────────────────────────────────────────
+def inject_icc_device_info(file_path, brand, model):
+    """
+    Patch ICC profile DeviceManufacturer (dmnd) and DeviceModel (dmdd)
+    fields directly in the JPEG binary.
+    ICC profile is embedded in JPEG APP2 marker (0xFFE2).
+    dmnd tag = 0x646D6E64, dmdd tag = 0x646D6464
+    Each tag: 4B sig + 4B type('desc'=0x64657363) + 4B reserved +
+              4B count + count bytes ASCII
+    """
+    try:
+        with open(file_path, "rb") as f:
+            data = bytearray(f.read())
+
+        # Find APP2 ICC marker
+        i = 0
+        icc_start = -1
+        while i < len(data) - 1:
+            if data[i] == 0xFF and data[i+1] == 0xE2:
+                # Check ICC signature at offset +4
+                if data[i+4:i+16] == b'ICC_PROFILE\x00':
+                    icc_start = i
+                    break
+            i += 1
+
+        if icc_start == -1:
+            return False  # No ICC profile found
+
+        # APP2 length
+        app2_len = (data[icc_start+2] << 8) | data[icc_start+3]
+        icc_data_start = icc_start + 4 + 12  # skip marker+len+ICC header
+        icc_end = icc_start + 2 + app2_len
+
+        icc = data[icc_data_start:icc_end]
+
+        def make_desc_tag(tag_sig, text):
+            """Build an ICC 'desc' tag: sig(4) + 'desc'(4) + 0(4) + len(4) + text"""
+            encoded = text.encode("ascii", errors="replace") + b'\x00'
+            return (tag_sig +
+                    b'desc' +
+                    b'\x00\x00\x00\x00' +
+                    len(encoded).to_bytes(4, 'big') +
+                    encoded)
+
+        # Patch or append dmnd (Device Manufacturer Description)
+        dmnd_sig = b'dmnd'
+        dmdd_sig = b'dmdd'
+
+        def patch_tag(icc_bytes, sig, text):
+            pos = icc_bytes.find(sig)
+            if pos != -1:
+                # tag exists — build replacement of same offset
+                new_tag = make_desc_tag(sig, text)
+                # just rebuild tag at position (variable length — safest to append)
+                return icc_bytes  # skip in-place patch, use exiftool fallback
+            return icc_bytes  # not found
+
+        # Simpler: write dmnd/dmdd as XMP sidecar via exiftool approach
+        # ICC binary patching is complex — use struct approach via Python
+        # Build minimal sRGB-like ICC with device info
+        # Tag table entry: 4B tag + 4B offset + 4B size
+        # We'll just return False and let the caller use XMP fallback
+        return False
+
+    except Exception:
+        return False
+
+
+def inject_icc_via_xmp(output_path, brand, model, tools):
+    """Write device info to XMP fields which map to ICC in some viewers"""
+    if not tools["exiftool"]:
+        return
+    subprocess.run([
+        "exiftool", "-overwrite_original",
+        f"-XMP:DeviceManufacturer={brand}",
+        f"-XMP:DeviceModel={model}",
+        f"-XMP-tiff:Make={brand}",
+        f"-XMP-tiff:Model={model}",
+        output_path
+    ], capture_output=True)
+
+
 def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
     fname = os.path.basename(file_path)
     info(f"Image → {fname}")
@@ -439,38 +565,68 @@ def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
     bar.update(20, label="File copied ✔", duration=0.2)
 
     lat_f, lon_f = float(lat), float(lon)
+    dt_str = datetime.now().strftime('%Y:%m:%d %H:%M:%S')
 
     if tools["exiftool"]:
         lat_ref = "N" if lat_f >= 0 else "S"
         lon_ref = "E" if lon_f >= 0 else "W"
+        focal   = random.choice(["24/1","26/1","27/1","50/1","85/1"])
+        fstop   = random.choice(["18/10","20/10","22/10","28/10","18/5"])
+        iso     = random.choice(["50","64","100","125","200","400"])
+        shutter = random.choice(["1/1000","1/500","1/250","1/125","1/60"])
         cmd = [
             "exiftool", "-overwrite_original",
             f"-Make={brand}",
             f"-Model={model}",
-            f"-LensInfo={brand} Lens",
-            f"-Software={brand} Camera App",
-            f"-DateTimeOriginal={datetime.now().strftime('%Y:%m:%d %H:%M:%S')}",
-            f"-CreateDate={datetime.now().strftime('%Y:%m:%d %H:%M:%S')}",
+            f"-LensModel={brand} {focal}mm f/{float(fstop.split('/')[0])/float(fstop.split('/')[1]):.1f}",
+            f"-FocalLength={focal}",
+            f"-FNumber={fstop}",
+            f"-ISO={iso}",
+            f"-ExposureTime={shutter}",
+            f"-Software={brand} Camera",
+            f"-DateTimeOriginal={dt_str}",
+            f"-CreateDate={dt_str}",
+            f"-ModifyDate={dt_str}",
             f"-GPSLatitude={abs(lat_f)}",
             f"-GPSLatitudeRef={lat_ref}",
             f"-GPSLongitude={abs(lon_f)}",
             f"-GPSLongitudeRef={lon_ref}",
-            f"-GPSAltitude=10",
+            f"-GPSAltitude=15",
             f"-GPSAltitudeRef=0",
+            f"-GPSTimeStamp={datetime.now().strftime('%H:%M:%S')}",
+            f"-GPSDateStamp={datetime.now().strftime('%Y:%m:%d')}",
             f"-ImageDescription=Shot on {brand} {model}",
             f"-Comment=Shot on {brand} {model}",
+            f"-Artist={brand}",
+            f"-Copyright={brand} {datetime.now().year}",
+            f"-ProfileDescription={brand} {model}",
+            f"-PrimaryPlatform=Unknown",
+            f"-XMP:DeviceManufacturer={brand}",
+            f"-XMP:DeviceModel={model}",
+            f"-XMP-tiff:Make={brand}",
+            f"-XMP-tiff:Model={model}",
+            "-JpegQuality=95",
             output_path
         ]
-        rc, stderr = run_with_progress("Injecting EXIF ...", cmd, bar, 25, 90)
+        rc, stderr = run_with_progress("Injecting EXIF ...", cmd, bar, 25, 85)
         if rc == 0:
+            # Second pass: ICC DeviceManufacturer + DeviceModel via -ICC_Profile
+            icc_cmd = [
+                "exiftool", "-overwrite_original",
+                f"-ICC_Profile:DeviceManufacturer={brand[:4].ljust(4)}",
+                f"-ICC_Profile:DeviceModel={model[:4].ljust(4)}",
+                f"-ICC_Profile:ProfileDescription={brand} {model}",
+                output_path
+            ]
+            subprocess.run(icc_cmd, capture_output=True)
             bar.finish(label="EXIF injected ✔")
-            ok("exiftool: all metadata injected")
+            ok("exiftool: metadata injected")
             return True
         else:
             bar.update(90, label="exiftool error ⚠", duration=0.2)
             warn(f"\nexiftool error: {stderr[:200]}")
 
-    # PIL fallback
+    # PIL fallback — save at high quality
     bar.update(92, label="PIL fallback ...", duration=0.2)
     try:
         from PIL import Image
@@ -479,15 +635,19 @@ def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
 
         img = Image.open(file_path)
         exif_dict = {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None}
-        exif_dict["0th"][piexif.ImageIFD.Make]  = brand.encode()
-        exif_dict["0th"][piexif.ImageIFD.Model] = model.encode()
-        exif_dict["0th"][piexif.ImageIFD.XPComment] = f"Shot on {brand} {model}".encode("utf-16le")
-        exif_dict["GPS"][piexif.GPSIFD.GPSLatitude]     = deg_to_dms_rational(lat_f)
-        exif_dict["GPS"][piexif.GPSIFD.GPSLatitudeRef]  = "N" if lat_f >= 0 else "S"
-        exif_dict["GPS"][piexif.GPSIFD.GPSLongitude]    = deg_to_dms_rational(lon_f)
-        exif_dict["GPS"][piexif.GPSIFD.GPSLongitudeRef] = "E" if lon_f >= 0 else "W"
+        exif_dict["0th"][piexif.ImageIFD.Make]             = brand.encode()
+        exif_dict["0th"][piexif.ImageIFD.Model]            = model.encode()
+        exif_dict["0th"][piexif.ImageIFD.Software]         = f"{brand} Camera".encode()
+        exif_dict["0th"][piexif.ImageIFD.XPComment]        = f"Shot on {brand} {model}".encode("utf-16le")
+        exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = dt_str.encode()
+        exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized]= dt_str.encode()
+        exif_dict["GPS"][piexif.GPSIFD.GPSLatitude]        = deg_to_dms_rational(lat_f)
+        exif_dict["GPS"][piexif.GPSIFD.GPSLatitudeRef]     = ("N" if lat_f >= 0 else "S").encode()
+        exif_dict["GPS"][piexif.GPSIFD.GPSLongitude]       = deg_to_dms_rational(lon_f)
+        exif_dict["GPS"][piexif.GPSIFD.GPSLongitudeRef]    = ("E" if lon_f >= 0 else "W").encode()
         exif_bytes = piexif.dump(exif_dict)
-        img.save(output_path, exif=exif_bytes)
+        # Save at high quality
+        img.save(output_path, exif=exif_bytes, quality=95, optimize=False, subsampling=0)
         bar.finish(label="PIL done ✔")
         ok("PIL/piexif fallback: done")
         return True
@@ -523,39 +683,213 @@ def main():
 
     # ── File Selection ──
     section("File Selection")
-    user_input = prompt("File path / multiple (,) / folder:")
-    if os.path.isdir(user_input):
-        files = [os.path.join(user_input, f) for f in os.listdir(user_input)
-                 if f.lower().endswith((".mp4", ".mov", ".mkv", ".jpg", ".jpeg", ".png"))]
-        info(f"Found {len(files)} files in folder")
-    else:
-        files = [f.strip() for f in user_input.split(",") if f.strip()]
+    print(color("  [1]", C.CYAN, C.BOLD) + color("  Browse /sdcard (folder navigator)", C.WHITE))
+    print(color("  [2]", C.CYAN, C.BOLD) + color("  Manual path input", C.WHITE))
+    file_mode = prompt("Select option [1/2]:", "1")
 
-    valid_files = [f for f in files if os.path.exists(f)]
+    valid_files = []
+    MEDIA_EXT = (".mp4", ".mov", ".mkv", ".jpg", ".jpeg", ".png")
+
+    if file_mode == "1":
+        # ── Interactive folder browser ──
+        def scan_folder_with_progress(path):
+            """Scan folder showing animated progress"""
+            MEDIA_EXT = (".mp4", ".mov", ".mkv", ".jpg", ".jpeg", ".png")
+            dirs_with_media = []
+            media_files     = []
+            spin = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+            spin_i = 0
+            try:
+                entries = sorted(os.listdir(path))
+            except PermissionError:
+                return [], []
+
+            for e in entries:
+                if e.startswith("."):
+                    continue
+                full = os.path.join(path, e)
+                # spinner
+                sys.stdout.write(f"\r  {color(spin[spin_i % len(spin)], C.CYAN, C.BOLD)}  "
+                                 f"{color('Scanning: ', C.DIM)}{color(e[:40], C.WHITE):<42}")
+                sys.stdout.flush()
+                spin_i += 1
+
+                if os.path.isdir(full):
+                    has_media = False
+                    try:
+                        for root, _, fnames in os.walk(full):
+                            if any(f.lower().endswith(MEDIA_EXT) for f in fnames):
+                                has_media = True
+                                break
+                    except:
+                        pass
+                    if has_media:
+                        dirs_with_media.append(e)
+                elif e.lower().endswith(MEDIA_EXT):
+                    media_files.append(e)
+
+            sys.stdout.write(f"\r  {color('✔', C.GREEN, C.BOLD)}  "
+                             f"{color(f'Found {len(dirs_with_media)} folder(s), {len(media_files)} file(s)', C.GREEN):<50}\n")
+            sys.stdout.flush()
+            return dirs_with_media, media_files
+
+        def browse_folder(current_path):
+            """Returns list of selected files"""
+            while True:
+                os.system("clear")
+                banner()
+                section(f"Browser: {current_path}")
+
+                # Scan with progress
+                dirs_with_media, media_files = scan_folder_with_progress(current_path)
+                if not dirs_with_media and not media_files and current_path == "/sdcard":
+                    err("Permission denied! Run: termux-setup-storage")
+                    return []
+
+                items = []  # (display, full_path, is_dir)
+
+                # Back option
+                if current_path != "/sdcard":
+                    print(color("  [ 0]", C.YELLOW, C.BOLD) +
+                          color("  [..] Back", C.YELLOW))
+
+                # Folders
+                for d in dirs_with_media:
+                    idx = len(items) + 1
+                    items.append((d, os.path.join(current_path, d), True))
+                    print(color(f"  [{idx:>3}]", C.CYAN, C.BOLD) +
+                          color(f"  [DIR]  {d}", C.CYAN))
+
+                # Media files
+                for f in media_files:
+                    idx = len(items) + 1
+                    ext = os.path.splitext(f)[1].upper().replace(".", "")
+                    ec  = C.MAGENTA if ext in ("MP4","MOV","MKV") else C.GREEN
+                    items.append((f, os.path.join(current_path, f), False))
+                    print(color(f"  [{idx:>3}]", C.CYAN, C.BOLD) +
+                          color(f"  [{ext}]  ", ec) +
+                          color(f"{f}", C.WHITE))
+
+                if not items:
+                    warn("No folders with media or media files found here.")
+
+                print()
+                print(color("  [*] Select ALL files in this folder", C.DIM))
+                print(color("  Multi: 2,3,5  |  Range: 2-6  |  0=Back", C.DIM))
+                sel = prompt("Enter number(s):")
+
+                # Back
+                if sel.strip() == "0":
+                    parent = os.path.dirname(current_path)
+                    if parent == current_path:
+                        return []
+                    current_path = parent
+                    continue
+
+                # Select all files in current folder
+                if sel.strip() == "*":
+                    selected = [it[1] for it in items if not it[2]]
+                    if selected:
+                        return selected
+                    warn("No files in this folder")
+                    continue
+
+                # Parse selection
+                chosen_idx = set()
+                for part in sel.split(","):
+                    part = part.strip()
+                    if "-" in part:
+                        try:
+                            a, b = part.split("-")
+                            chosen_idx.update(range(int(a), int(b)+1))
+                        except:
+                            warn(f"Invalid range: {part}")
+                    else:
+                        try:
+                            chosen_idx.add(int(part))
+                        except:
+                            warn(f"Invalid: {part}")
+
+                result_files = []
+                enter_dir    = None
+                for idx in sorted(chosen_idx):
+                    if 1 <= idx <= len(items):
+                        name, path, is_dir = items[idx-1]
+                        if is_dir:
+                            enter_dir = path  # enter first selected dir
+                        else:
+                            result_files.append(path)
+                    else:
+                        warn(f"No item at {idx}")
+
+                if result_files:
+                    return result_files
+                elif enter_dir:
+                    current_path = enter_dir
+                    continue
+                else:
+                    warn("Nothing selected")
+
+        valid_files = browse_folder("/sdcard") or []
+
+    else:
+        # ── Manual input ──
+        user_input = prompt("File path / multiple (,) / folder:")
+        if os.path.isdir(user_input):
+            MEDIA_EXT = (".mp4", ".mov", ".mkv", ".jpg", ".jpeg", ".png")
+            raw = [os.path.join(user_input, f) for f in os.listdir(user_input)
+                   if f.lower().endswith(MEDIA_EXT)]
+            valid_files = [f for f in raw if os.path.exists(f)]
+            info(f"Found {len(valid_files)} files in folder")
+        else:
+            paths = [f.strip() for f in user_input.split(",") if f.strip()]
+            valid_files = [f for f in paths if os.path.exists(f)]
+
     if not valid_files:
-        err("No valid files found!")
+        err("No valid files selected!")
         exit(1)
-    ok(f"{len(valid_files)} file(s) ready")
+    ok(f"{len(valid_files)} file(s) selected:")
+    for f in valid_files:
+        print(color(f"    + {os.path.basename(f)}", C.GREEN))
 
     # ── Device Selection ──
     section("Device Selection")
     categories = {
-        "── Auto":         ["1"],
-        "── Samsung":      ["2","3","4","5","6","7","8"],
-        "── Apple":        ["9","10","11","12","13"],
-        "── Xiaomi/POCO":  ["14","15","16","17","18"],
-        "── OPPO/OnePlus": ["19","20","21","22"],
-        "── Vivo/iQOO":    ["23","24"],
-        "── Google":       ["25","26","27"],
-        "── Huawei":       ["28","29"],
-        "── Realme":       ["30","31"],
-        "── Custom":       ["32"],
+        "Auto":         ["1"],
+        "Samsung":      ["2","3","4","5","6","7","8"],
+        "Apple":        ["9","10","11","12","13"],
+        "Xiaomi/POCO":  ["14","15","16","17","18"],
+        "OPPO/OnePlus": ["19","20","21","22"],
+        "Vivo/iQOO":    ["23","24"],
+        "Google":       ["25","26","27"],
+        "Huawei":       ["28","29"],
+        "Realme":       ["30","31"],
+        "Custom":       ["32"],
     }
+    # Table header
+    line = "─" * 62
+    print(color(f"\n  ┌{line}┐", C.YELLOW))
+    print(color(f"  │ {'No':<4} {'Device':<27} │ {'No':<4} {'Device':<27}│", C.WHITE, C.BOLD))
+    print(color(f"  ├{line}┤", C.YELLOW))
+
     for cat, keys in categories.items():
-        print(color(f"\n  {cat}", C.YELLOW))
-        for k in keys:
-            label = DEVICES[k][0]
-            print(color(f"    [{k:>2}]", C.CYAN, C.BOLD) + color(f"  {label}", C.WHITE))
+        print(color(f"  │ {cat:<60} │", C.YELLOW, C.BOLD))
+        pairs = [keys[i:i+2] for i in range(0, len(keys), 2)]
+        for pair in pairs:
+            left_k = pair[0]
+            left_l = DEVICES[left_k][0]
+            if len(pair) > 1:
+                right_k = pair[1]
+                right_l = DEVICES[right_k][0]
+            else:
+                right_k = ""
+                right_l = ""
+            left_cell  = color(f"[{left_k:>2}]",  C.CYAN, C.BOLD) + color(f" {left_l:<25}", C.WHITE)
+            right_cell = (color(f"[{right_k:>2}]", C.CYAN, C.BOLD) + color(f" {right_l:<25}", C.WHITE)) if right_k else color(f"{'':30}", C.WHITE)
+            print(f"  │ {left_cell} │ {right_cell}│")
+        print(color(f"  ├{line}┤", C.YELLOW))
+
+    print(color(f"  └{line}┘", C.YELLOW))
     choice = prompt("Select device number:")
     if choice not in DEVICES:
         err("Invalid device choice"); exit(1)
@@ -632,38 +966,29 @@ def main():
         lon = prompt("Longitude (e.g. 90.356):", "90.356")
         city_name = "Custom"
 
-    # ── Output folder (OS-based auto detect) ──
+    # ── Output folder ──
     section("Output Settings")
 
     def detect_default_output():
-        # Termux detection
         if os.path.exists("/data/data/com.termux") or "com.termux" in os.environ.get("PREFIX", ""):
-            sdcard = "/sdcard/meta_output"
-            return sdcard, "Termux (SDCard)"
-        # Linux / Ubuntu / Kali
+            return "/sdcard/meta_output", "Termux"
         return "./meta_output", "Linux"
 
     default_out, platform_name = detect_default_output()
-    info(f"Platform detected: {platform_name}")
-    info(f"Default output  : {default_out}")
-    out_dir = prompt(f"Output folder [Enter = use default]:", default_out)
-    if not out_dir:
-        out_dir = default_out
+    info(f"Platform : {platform_name}")
+    info(f"Output   : {default_out}")
+    out_dir = default_out
 
     try:
         os.makedirs(out_dir, exist_ok=True)
-        ok(f"Output folder ready → {out_dir}")
+        ok(f"Output ready → {out_dir}")
     except PermissionError:
-        warn(f"Permission denied: {out_dir}")
-        warn("Termux e SDCard access er jonno run korte hobe:")
-        warn("  termux-setup-storage")
-        fallback = "./meta_output"
-        os.makedirs(fallback, exist_ok=True)
-        out_dir = fallback
-        ok(f"Fallback folder → {out_dir}")
+        warn("Permission denied! Run: termux-setup-storage")
+        out_dir = "./meta_output"
+        os.makedirs(out_dir, exist_ok=True)
+        ok(f"Fallback → {out_dir}")
     except Exception as e:
-        err(f"Folder error: {e}")
-        exit(1)
+        err(f"Folder error: {e}"); exit(1)
 
     now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
