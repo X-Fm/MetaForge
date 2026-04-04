@@ -149,7 +149,7 @@ def banner():
 ╠══════════════════════════════════════════════════════╣
 ║       EXIF • GPS • Device Metadata Injector          ║
 ╠══════════════════════════════════════════════════════╣
-║  Developer : FmIt                                    ║
+║  Developer : Forrukh                                    ║
 ║  Contact   : https://t.me/fmitofficial               ║
 ╚══════════════════════════════════════════════════════╝""", C.CYAN, C.BOLD))
     print(color(f"  ⏱  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  |  Termux Ready\n", C.DIM))
