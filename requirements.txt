@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────
 # Meta Forge — Python Requirements
-# Developer : FmIt | https://t.me/fmitofficial
+# Developer : Forrukh | https://t.me/fmitofficial
 # ─────────────────────────────────────────────
 
 # Image EXIF read/write
