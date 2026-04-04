@@ -1,7 +1,7 @@
 # Meta Forge v2.0
 EXIF | GPS | Device Metadata Injector
 
-Developer : FmIt
+Developer : Forrukh
 Contact   : https://t.me/fmitofficial
 GitHub    : https://github.com/X-Fm/MetaForge
 
@@ -175,7 +175,7 @@ For GPS auto-detect in Termux:
 
 ---
 
-Meta Forge v2.0 - FmIt | t.me/fmitofficial | github.com/X-Fm/MetaForge
+Meta Forge v2.1 - Forrukh | t.me/fmitofficial | github.com/X-Fm/MetaForge
 
 ---
 
