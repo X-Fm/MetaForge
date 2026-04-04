@@ -553,6 +553,39 @@ def inject_icc_via_xmp(output_path, brand, model, tools):
     ], capture_output=True)
 
 
+def get_timezone_offset(lat_f, lon_f):
+    """
+    Get UTC offset in seconds for given GPS coordinates.
+    Uses timezonefinder if available, else falls back to device timezone.
+    """
+    try:
+        from timezonefinder import TimezoneFinder
+        import zoneinfo
+        tf  = TimezoneFinder()
+        tz_name = tf.timezone_at(lat=lat_f, lng=lon_f)
+        if tz_name:
+            tz  = zoneinfo.ZoneInfo(tz_name)
+            loc_now = datetime.now(tz)
+            offset  = loc_now.utcoffset()
+            total_s = int(offset.total_seconds())
+            h, m    = divmod(abs(total_s) // 60, 60)
+            sign    = "+" if total_s >= 0 else "-"
+            tz_str  = f"{sign}{h:02d}:{m:02d}"
+            return loc_now, tz_str, tz_name
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
+    # Fallback: device timezone
+    now_local = datetime.now().astimezone()
+    tz_offset = now_local.strftime('%z')
+    tz_str    = tz_offset[:3] + ":" + tz_offset[3:]
+    import time as _time
+    tz_name   = _time.tzname[0]
+    return now_local, tz_str, tz_name
+
+
 def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
     fname = os.path.basename(file_path)
     info(f"Image → {fname}")
@@ -565,7 +598,17 @@ def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
     bar.update(20, label="File copied ✔", duration=0.2)
 
     lat_f, lon_f = float(lat), float(lon)
-    dt_str = datetime.now().strftime('%Y:%m:%d %H:%M:%S')
+
+    # Get timezone from GPS location
+    loc_now, tz_str, tz_name = get_timezone_offset(lat_f, lon_f)
+    info(f"Location TZ: {tz_name} ({tz_str})")
+
+    dt_str    = loc_now.strftime('%Y:%m:%d %H:%M:%S')
+    dt_tz_str = dt_str + tz_str                        # 2026:04:04 12:57:49+06:00
+
+    # GPS timestamp always UTC
+    import datetime as _dt
+    utc_now   = datetime.utcnow()
 
     if tools["exiftool"]:
         lat_ref = "N" if lat_f >= 0 else "S"
@@ -584,17 +627,17 @@ def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
             f"-ISO={iso}",
             f"-ExposureTime={shutter}",
             f"-Software={brand} Camera",
-            f"-DateTimeOriginal={dt_str}",
-            f"-CreateDate={dt_str}",
-            f"-ModifyDate={dt_str}",
+            f"-DateTimeOriginal={dt_tz_str}",
+            f"-CreateDate={dt_tz_str}",
+            f"-ModifyDate={dt_tz_str}",
             f"-GPSLatitude={abs(lat_f)}",
             f"-GPSLatitudeRef={lat_ref}",
             f"-GPSLongitude={abs(lon_f)}",
             f"-GPSLongitudeRef={lon_ref}",
             f"-GPSAltitude=15",
             f"-GPSAltitudeRef=0",
-            f"-GPSTimeStamp={datetime.now().strftime('%H:%M:%S')}",
-            f"-GPSDateStamp={datetime.now().strftime('%Y:%m:%d')}",
+            f"-GPSTimeStamp={utc_now.strftime('%H:%M:%S')}",
+            f"-GPSDateStamp={utc_now.strftime('%Y:%m:%d')}",
             f"-ImageDescription=Shot on {brand} {model}",
             f"-Comment=Shot on {brand} {model}",
             f"-Artist={brand}",
@@ -969,28 +1012,31 @@ def main():
     # ── Output folder ──
     section("Output Settings")
 
-    def detect_default_output():
+    def detect_output():
         if os.path.exists("/data/data/com.termux") or "com.termux" in os.environ.get("PREFIX", ""):
-            return "/sdcard/meta_output", "Termux"
+            return "/sdcard/meta", "Termux"
         return "./meta_output", "Linux"
 
-    default_out, platform_name = detect_default_output()
-    info(f"Platform : {platform_name}")
-    info(f"Output   : {default_out}")
-    out_dir = default_out
+    final_dir, platform_name = detect_output()
+
+    info(f"Platform   : {platform_name}")
+    info(f"Output dir : {final_dir}")
 
     try:
-        os.makedirs(out_dir, exist_ok=True)
-        ok(f"Output ready → {out_dir}")
+        os.makedirs(final_dir, exist_ok=True)
+        ok(f"Output ready → {final_dir}")
     except PermissionError:
         warn("Permission denied! Run: termux-setup-storage")
-        out_dir = "./meta_output"
-        os.makedirs(out_dir, exist_ok=True)
-        ok(f"Fallback → {out_dir}")
+        final_dir = "./meta_output"
+        os.makedirs(final_dir, exist_ok=True)
+        ok(f"Fallback → {final_dir}")
     except Exception as e:
         err(f"Folder error: {e}"); exit(1)
 
-    now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    # GPS location timezone → video creation_time
+    _loc_now, _tz_str, _tz_name = get_timezone_offset(float(lat), float(lon))
+    now = _loc_now.strftime("%Y-%m-%dT%H:%M:%S") + _tz_str
+    info(f"Video TZ : {_tz_name} ({_tz_str})")
 
     # ── Process Files ──
     section("Processing")
@@ -1000,7 +1046,7 @@ def main():
     for file_path in valid_files:
         ext = os.path.splitext(file_path)[1].lower()
         now_dt = datetime.now()
-        date_str = now_dt.strftime("%d%m%Y")
+        date_str = now_dt.strftime("%Y%m%d")
         time_str = now_dt.strftime("%H%M%S")
 
         if ext in (".mp4", ".mov", ".mkv"):
@@ -1010,23 +1056,38 @@ def main():
         else:
             out_name = f"FILE{date_str}{time_str}{ext}"
 
-        output_path = os.path.join(out_dir, out_name)
+        final_path = os.path.join(final_dir, out_name)
 
         print()
-        info(f"Output name: {color(out_name, C.GREEN, C.BOLD)}")
+        info(f"Output name : {color(out_name, C.GREEN, C.BOLD)}")
+
         if ext in (".mp4", ".mov", ".mkv"):
-            r = process_video(file_path, brand, model, lat, lon, output_path, tools, now)
+            r = process_video(file_path, brand, model, lat, lon, final_path, tools, now)
         elif ext in (".jpg", ".jpeg", ".png"):
-            r = process_image(file_path, brand, model, lat, lon, output_path, tools, now)
+            r = process_image(file_path, brand, model, lat, lon, final_path, tools, now)
         else:
             warn(f"Unsupported: {file_path}"); fail += 1; continue
 
         if r:
             success += 1
             output_files.append(out_name)
-            verify_metadata(output_path, tools)
+            verify_metadata(final_path, tools)
         else:
+            if os.path.exists(final_path):
+                os.remove(final_path)
             fail += 1
+
+    # ── Media Scanner (Gallery refresh) ──
+    if output_files and os.path.exists("/data/data/com.termux"):
+        info("Scanning files to Gallery...")
+        for fname in output_files:
+            fpath = os.path.join(final_dir, fname)
+            subprocess.run([
+                "am", "broadcast",
+                "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+                "-d", f"file://{fpath}"
+            ], capture_output=True)
+        ok("Gallery updated!")
 
     # ── Summary ──
     section("Summary")
@@ -1034,7 +1095,7 @@ def main():
     print(color(f"""
   Device    :  {brand} {model}
   Location  :  {city_name} ({lat}, {lon})
-  Output    :  {out_dir}
+  Output    :  {final_dir}
   Success   :  {success} file(s)
   Failed    :  {fail} file(s)
 """, C.WHITE))
