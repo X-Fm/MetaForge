@@ -1,4 +1,4 @@
-# Meta Forge v2.0
+# Meta Forge v2.1
 EXIF | GPS | Device Metadata Injector
 
 Developer : Forrukh
