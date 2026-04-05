@@ -285,8 +285,7 @@ For GPS auto-detect in Termux:
 ## Links
 
 - GitHub   : https://github.com/X-Fm/MetaForge
-- Telegram : https://t.me/fmitofficial
-
+- [![Contact on Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram)](https://t.me/fmitofficial)
 ---
 
 Meta Forge v2.5 - Forrukh (FmIt) | [![Contact on Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram)](https://t.me/fmitofficial) | github.com/X-Fm/MetaForge
