@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+# ─────────────────────────────────────────────
+CURRENT_VERSION = "2.1"
+GITHUB_USER     = "X-Fm"
+GITHUB_REPO     = "MetaForge"
+VERSION_URL     = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/version.txt"
+SCRIPT_URL      = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/meta_forge.py"
 # ╔═══════════════════════════════════════════════════════╗
 # ║           META FORGE - EXIF/Metadata Injector         ║
 # ║         Device | GPS | Timestamp Spoofer              ║
@@ -137,6 +144,75 @@ def run_with_progress(label, cmd, bar, start_pct, end_pct):
     return proc.returncode, stderr.decode()
 
 
+
+# ─────────────────────────────────────────────
+# 🔄 Auto Update System
+# ─────────────────────────────────────────────
+def check_update():
+    """Check GitHub for newer version and auto update if found"""
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            VERSION_URL,
+            headers={"User-Agent": "MetaForge-Updater"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            latest = resp.read().decode().strip()
+
+        if latest == CURRENT_VERSION:
+            ok(f"Already up to date (v{CURRENT_VERSION})")
+            return False
+
+        # New version available
+        print(color(f"\n  ┌─── Update Available ───────────────────────────┐", C.YELLOW, C.BOLD))
+        print(color(f"  │  Current : v{CURRENT_VERSION:<38}│", C.WHITE))
+        print(color(f"  │  Latest  : v{latest:<38}│", C.GREEN, C.BOLD))
+        print(color(f"  └────────────────────────────────────────────────┘", C.YELLOW))
+
+        choice = prompt("Auto update now? [y/n]:", "y")
+        if choice.lower() != "y":
+            info("Skipping update...")
+            return False
+
+        # Download new version
+        info("Downloading update...")
+        script_path = os.path.abspath(__file__)
+        backup_path = script_path + ".backup"
+
+        req2 = urllib.request.Request(
+            SCRIPT_URL,
+            headers={"User-Agent": "MetaForge-Updater"}
+        )
+
+        bar = ProgressBar()
+        bar.start(label="Downloading...")
+
+        with urllib.request.urlopen(req2, timeout=30) as resp:
+            new_code = resp.read()
+
+        bar.update(70, label="Downloaded ✔", duration=0.3)
+
+        # Backup old version
+        shutil.copy2(script_path, backup_path)
+        bar.update(85, label="Backup created...", duration=0.2)
+
+        # Write new version
+        with open(script_path, 'wb') as f:
+            f.write(new_code)
+
+        bar.finish(label="Update complete ✔")
+        ok(f"Updated to v{latest}")
+        ok(f"Backup saved: {backup_path}")
+        print(color("\n  Restart script to use new version\n", C.CYAN, C.BOLD))
+        exit(0)
+
+    except urllib.error.URLError:
+        warn("Update check failed (no internet)")
+        return False
+    except Exception as e:
+        warn(f"Update check error: {e}")
+        return False
+
 def banner():
     print(color("""
 ╔══════════════════════════════════════════════════════╗
@@ -149,7 +225,7 @@ def banner():
 ╠══════════════════════════════════════════════════════╣
 ║       EXIF • GPS • Device Metadata Injector          ║
 ╠══════════════════════════════════════════════════════╣
-║  Developer : Forrukh                                    ║
+║  Developer : Forrukh (FmIt)                                    ║
 ║  Contact   : https://t.me/fmitofficial               ║
 ╚══════════════════════════════════════════════════════╝""", C.CYAN, C.BOLD))
     print(color(f"  ⏱  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  |  Termux Ready\n", C.DIM))
@@ -243,127 +319,332 @@ DEVICES = {
 # ─────────────────────────────────────────────
 # 🌍 Top 50 Cities — All Continents
 # ─────────────────────────────────────────────
+# CITIES: name -> (lat, lon, tz_offset)
+# tz_offset format: "+06:00"
 CITIES = {
-    # 🌏 Asia
-    "Dhaka, Bangladesh":        ("23.8103",  "90.4125"),
-    "Chittagong, Bangladesh":   ("22.3569",  "91.7832"),
-    "Mumbai, India":            ("19.0760",  "72.8777"),
-    "Delhi, India":             ("28.7041",  "77.1025"),
-    "Kolkata, India":           ("22.5726",  "88.3639"),
-    "Karachi, Pakistan":        ("24.8607",  "67.0011"),
-    "Lahore, Pakistan":         ("31.5204",  "74.3587"),
-    "Colombo, Sri Lanka":       ("6.9271",   "79.8612"),
-    "Kathmandu, Nepal":         ("27.7172",  "85.3240"),
-    "Kabul, Afghanistan":       ("34.5553",  "69.2075"),
-    "Tehran, Iran":             ("35.6892",  "51.3890"),
-    "Dubai, UAE":               ("25.2048",  "55.2708"),
-    "Riyadh, Saudi Arabia":     ("24.7136",  "46.6753"),
-    "Baghdad, Iraq":            ("33.3152",  "44.3661"),
-    "Istanbul, Turkey":         ("41.0082",  "28.9784"),
-    "Beijing, China":           ("39.9042",  "116.4074"),
-    "Shanghai, China":          ("31.2304",  "121.4737"),
-    "Tokyo, Japan":             ("35.6762",  "139.6503"),
-    "Seoul, South Korea":       ("37.5665",  "126.9780"),
-    "Bangkok, Thailand":        ("13.7563",  "100.5018"),
-    "Jakarta, Indonesia":       ("-6.2088",  "106.8456"),
-    "Singapore":                ("1.3521",   "103.8198"),
-    "Kuala Lumpur, Malaysia":   ("3.1390",   "101.6869"),
-    "Manila, Philippines":      ("14.5995",  "120.9842"),
-    "Yangon, Myanmar":          ("16.8661",  "96.1951"),
-    "Tashkent, Uzbekistan":     ("41.2995",  "69.2401"),
-    # 🌍 Africa
-    "Cairo, Egypt":             ("30.0444",  "31.2357"),
-    "Lagos, Nigeria":           ("6.5244",   "3.3792"),
-    "Nairobi, Kenya":           ("-1.2921",  "36.8219"),
-    "Casablanca, Morocco":      ("33.5731",  "-7.5898"),
-    "Johannesburg, S. Africa":  ("-26.2041", "28.0473"),
-    "Addis Ababa, Ethiopia":    ("9.0320",   "38.7469"),
-    # 🌎 Europe
-    "London, UK":               ("51.5074",  "-0.1278"),
-    "Paris, France":            ("48.8566",  "2.3522"),
-    "Berlin, Germany":          ("52.5200",  "13.4050"),
-    "Rome, Italy":              ("41.9028",  "12.4964"),
-    "Madrid, Spain":            ("40.4168",  "-3.7038"),
-    "Moscow, Russia":           ("55.7558",  "37.6173"),
-    "Amsterdam, Netherlands":   ("52.3676",  "4.9041"),
-    "Stockholm, Sweden":        ("59.3293",  "18.0686"),
-    # 🌎 Americas
-    "New York, USA":            ("40.7128",  "-74.0060"),
-    "Los Angeles, USA":         ("34.0522",  "-118.2437"),
-    "Chicago, USA":             ("41.8781",  "-87.6298"),
-    "Toronto, Canada":          ("43.6532",  "-79.3832"),
-    "Mexico City, Mexico":      ("19.4326",  "-99.1332"),
-    "São Paulo, Brazil":        ("-23.5505", "-46.6333"),
-    "Buenos Aires, Argentina":  ("-34.6037", "-58.3816"),
-    "Bogotá, Colombia":         ("4.7110",   "-74.0721"),
-    # 🌏 Oceania
-    "Sydney, Australia":        ("-33.8688", "151.2093"),
-    "Melbourne, Australia":     ("-37.8136", "144.9631"),
+    # Asia
+    "Dhaka, Bangladesh":        ("23.8103",  "90.4125",   "+06:00"),
+    "Chittagong, Bangladesh":   ("22.3569",  "91.7832",   "+06:00"),
+    "Mumbai, India":            ("19.0760",  "72.8777",   "+05:30"),
+    "Delhi, India":             ("28.7041",  "77.1025",   "+05:30"),
+    "Kolkata, India":           ("22.5726",  "88.3639",   "+05:30"),
+    "Karachi, Pakistan":        ("24.8607",  "67.0011",   "+05:00"),
+    "Lahore, Pakistan":         ("31.5204",  "74.3587",   "+05:00"),
+    "Colombo, Sri Lanka":       ("6.9271",   "79.8612",   "+05:30"),
+    "Kathmandu, Nepal":         ("27.7172",  "85.3240",   "+05:45"),
+    "Kabul, Afghanistan":       ("34.5553",  "69.2075",   "+04:30"),
+    "Tehran, Iran":             ("35.6892",  "51.3890",   "+03:30"),
+    "Dubai, UAE":               ("25.2048",  "55.2708",   "+04:00"),
+    "Riyadh, Saudi Arabia":     ("24.7136",  "46.6753",   "+03:00"),
+    "Baghdad, Iraq":            ("33.3152",  "44.3661",   "+03:00"),
+    "Istanbul, Turkey":         ("41.0082",  "28.9784",   "+03:00"),
+    "Beijing, China":           ("39.9042",  "116.4074",  "+08:00"),
+    "Shanghai, China":          ("31.2304",  "121.4737",  "+08:00"),
+    "Tokyo, Japan":             ("35.6762",  "139.6503",  "+09:00"),
+    "Seoul, South Korea":       ("37.5665",  "126.9780",  "+09:00"),
+    "Bangkok, Thailand":        ("13.7563",  "100.5018",  "+07:00"),
+    "Jakarta, Indonesia":       ("-6.2088",  "106.8456",  "+07:00"),
+    "Singapore":                ("1.3521",   "103.8198",  "+08:00"),
+    "Kuala Lumpur, Malaysia":   ("3.1390",   "101.6869",  "+08:00"),
+    "Manila, Philippines":      ("14.5995",  "120.9842",  "+08:00"),
+    "Yangon, Myanmar":          ("16.8661",  "96.1951",   "+06:30"),
+    "Tashkent, Uzbekistan":     ("41.2995",  "69.2401",   "+05:00"),
+    # Africa
+    "Cairo, Egypt":             ("30.0444",  "31.2357",   "+02:00"),
+    "Lagos, Nigeria":           ("6.5244",   "3.3792",    "+01:00"),
+    "Nairobi, Kenya":           ("-1.2921",  "36.8219",   "+03:00"),
+    "Casablanca, Morocco":      ("33.5731",  "-7.5898",   "+01:00"),
+    "Johannesburg, S. Africa":  ("-26.2041", "28.0473",   "+02:00"),
+    "Addis Ababa, Ethiopia":    ("9.0320",   "38.7469",   "+03:00"),
+    # Europe
+    "London, UK":               ("51.5074",  "-0.1278",   "+01:00"),
+    "Paris, France":            ("48.8566",  "2.3522",    "+02:00"),
+    "Berlin, Germany":          ("52.5200",  "13.4050",   "+02:00"),
+    "Rome, Italy":              ("41.9028",  "12.4964",   "+02:00"),
+    "Madrid, Spain":            ("40.4168",  "-3.7038",   "+02:00"),
+    "Moscow, Russia":           ("55.7558",  "37.6173",   "+03:00"),
+    "Amsterdam, Netherlands":   ("52.3676",  "4.9041",    "+02:00"),
+    "Stockholm, Sweden":        ("59.3293",  "18.0686",   "+02:00"),
+    # Americas
+    "New York, USA":            ("40.7128",  "-74.0060",  "-04:00"),
+    "Los Angeles, USA":         ("34.0522",  "-118.2437", "-07:00"),
+    "Chicago, USA":             ("41.8781",  "-87.6298",  "-05:00"),
+    "Toronto, Canada":          ("43.6532",  "-79.3832",  "-04:00"),
+    "Mexico City, Mexico":      ("19.4326",  "-99.1332",  "-06:00"),
+    "Sao Paulo, Brazil":        ("-23.5505", "-46.6333",  "-03:00"),
+    "Buenos Aires, Argentina":  ("-34.6037", "-58.3816",  "-03:00"),
+    "Bogota, Colombia":         ("4.7110",   "-74.0721",  "-05:00"),
+    # Oceania
+    "Sydney, Australia":        ("-33.8688", "151.2093",  "+10:00"),
+    "Melbourne, Australia":     ("-37.8136", "144.9631",  "+10:00"),
 }
 
 def random_city():
     city = random.choice(list(CITIES.keys()))
-    lat, lon = CITIES[city]
+    lat, lon, tz = CITIES[city]
     info(f"Random city → {city} ({lat}, {lon})")
     return lat, lon, city
 
-def get_auto_gps():
-    """Try termux-location with multiple providers"""
-    for provider in ["gps", "network", "passive"]:
-        try:
-            result = subprocess.run(
-                ["termux-location", "-p", provider, "-r", "once"],
-                capture_output=True, text=True, timeout=5
+def city_timezone(city_name):
+    """Return tz_offset string for a city, e.g. '+06:00'"""
+    entry = CITIES.get(city_name)
+    if entry and len(entry) == 3:
+        return entry[2]
+    # fallback device tz
+    now_local = datetime.now().astimezone()
+    raw = now_local.strftime('%z')
+    return raw[:3] + ":" + raw[3:]
+
+def _run_with_spinner(label, cmd, timeout_s):
+    """Run subprocess with animated spinner. Returns (returncode, stdout, stderr)"""
+    stop_evt = threading.Event()
+
+    def spin_thread():
+        spin  = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+        i     = 0
+        start = time.time()
+        while not stop_evt.is_set():
+            elapsed = time.time() - start
+            pct     = min(99, int(elapsed / timeout_s * 100))
+            filled  = int(30 * pct / 100)
+            bar     = C.GREEN + "█" * filled + C.DIM + "░" * (30 - filled) + C.RESET
+            sys.stdout.write(
+                f"\r  {color(spin[i%len(spin)], C.CYAN, C.BOLD)}  "
+                f"{color(label, C.WHITE):<30} "
+                f"[{bar}] {color(f'{pct:3d}%', C.GREEN, C.BOLD)}"
             )
-            if result.returncode == 0 and result.stdout.strip():
-                data = json.loads(result.stdout)
-                lat = str(data.get("latitude", ""))
-                lon = str(data.get("longitude", ""))
-                if lat and lon and lat != "0.0":
-                    ok(f"GPS ({provider}): {lat}, {lon}")
-                    return lat, lon, "GPS Auto"
-        except:
-            pass
+            sys.stdout.flush()
+            i += 1
+            time.sleep(0.1)
+        sys.stdout.write("\r" + " " * 72 + "\r")
+        sys.stdout.flush()
+
+    t = threading.Thread(target=spin_thread, daemon=True)
+    t.start()
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
+        stop_evt.set(); t.join()
+        return r.returncode, r.stdout, r.stderr
+    except subprocess.TimeoutExpired:
+        stop_evt.set(); t.join()
+        return -1, "", "timeout"
+    except Exception as e:
+        stop_evt.set(); t.join()
+        return -1, "", str(e)
+
+
+def check_internet():
+    """Quick internet check"""
+    try:
+        r = subprocess.run(
+            ["ping", "-c", "1", "-W", "2", "8.8.8.8"],
+            capture_output=True, timeout=3
+        )
+        if r.returncode == 0:
+            return True
+    except:
+        pass
+    try:
+        r = subprocess.run(
+            ["curl", "-s", "--max-time", "3", "-o", "/dev/null",
+             "-w", "%{http_code}", "http://connectivitycheck.gstatic.com/generate_204"],
+            capture_output=True, text=True, timeout=4
+        )
+        if r.stdout.strip() in ("204", "200"):
+            return True
+    except:
+        pass
+    return False
+
+
+def check_termux_api():
+    """Check if termux-location is available"""
+    if not shutil.which("termux-location"):
+        warn("termux-location not found!")
+        warn("Fix: pkg install termux-api")
+        warn("Fix: Install Termux:API app from F-Droid")
+        return False
+    return True
+
+
+
+def get_location_wifi_tower():
+    """
+    Get location via WiFi + mobile tower using Google Geolocation API (free tier).
+    No API key needed for basic requests.
+    """
+    try:
+        # Get WiFi info via termux-wifi-scaninfo
+        wifi_data = []
+        rc_w, out_w, _ = _run_with_spinner("Scanning WiFi...", [
+            "termux-wifi-scaninfo"
+        ], 4)
+        if rc_w == 0 and out_w.strip():
+            try:
+                wlist = json.loads(out_w)
+                for ap in wlist[:5]:
+                    bssid = ap.get("bssid", "")
+                    rssi  = ap.get("level", -70)
+                    if bssid:
+                        wifi_data.append({
+                            "macAddress": bssid,
+                            "signalStrength": rssi
+                        })
+            except:
+                pass
+
+        if not wifi_data:
+            return None, None, None
+
+        payload = json.dumps({"wifiAccessPoints": wifi_data})
+        import urllib.request
+        req = urllib.request.Request(
+            "https://www.googleapis.com/geolocation/v1/geolocate?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY",
+            data=payload.encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode())
+            loc  = data.get("location", {})
+            lat  = str(loc.get("lat", ""))
+            lon  = str(loc.get("lng", ""))
+            if lat and lon:
+                return lat, lon, "WiFi/Tower"
+    except:
+        pass
     return None, None, None
 
-def get_network_location():
-    """Multi-API IP-based location fallback"""
+def get_location_by_ip():
+    """IP-based location - curl + urllib fallback"""
     apis = [
-        ("https://ipapi.co/json/",      "latitude",  "longitude",  "city", "country_name"),
-        ("https://ip-api.com/json/",    "lat",       "lon",        "city", "country"),
-        ("https://ipinfo.io/json",      None,        None,         "city", "country"),
+        ("http://ip-api.com/json/",   "lat",       "lon",       "city", "country"),
+        ("https://ipapi.co/json/",    "latitude",  "longitude", "city", "country_name"),
+        ("https://ipinfo.io/json",    None,         None,        "city", "country"),
     ]
     for url, lat_key, lon_key, city_key, country_key in apis:
+        out = None
+        rc, curl_out, _ = _run_with_spinner("IP location...", [
+            "curl", "-s", "--max-time", "3", "-A",
+            "Mozilla/5.0 (Linux; Android 13)", url
+        ], 4)
+        if rc == 0 and curl_out.strip():
+            out = curl_out
+        if not out:
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "Mozilla/5.0 (Linux; Android 13)"}
+                )
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    out = resp.read().decode()
+            except:
+                pass
+        if not out:
+            continue
         try:
-            result = subprocess.run(
-                ["curl", "-s", "--max-time", "6", "-A",
-                 "Mozilla/5.0 (Linux; Android 13)", url],
-                capture_output=True, text=True
-            )
-            if result.returncode != 0 or not result.stdout.strip():
+            data = json.loads(out)
+            if data.get("status") == "fail":
                 continue
-            data = json.loads(result.stdout)
-
-            # ipinfo returns loc as "lat,lon"
             if lat_key is None and "loc" in data:
                 parts = data["loc"].split(",")
-                if len(parts) == 2:
-                    lat, lon = parts[0].strip(), parts[1].strip()
-                else:
-                    continue
+                if len(parts) != 2: continue
+                lat, lon = parts[0].strip(), parts[1].strip()
             else:
                 lat = str(data.get(lat_key, ""))
                 lon = str(data.get(lon_key, ""))
-
-            city    = data.get(city_key, "")
+            city    = data.get(city_key,    "")
             country = data.get(country_key, "")
-
             if lat and lon and lat not in ("", "0", "0.0"):
                 label = f"{city}, {country}".strip(", ")
                 return lat, lon, label
         except:
             pass
     return None, None, None
+
+
+def get_location_by_timezone():
+    """Pick city matching device timezone offset"""
+    try:
+        now_local  = datetime.now().astimezone()
+        dev_offset = now_local.strftime('%z')          # e.g. +0600
+        dev_tz_str = dev_offset[:3] + ":" + dev_offset[3:]  # +06:00
+
+        matches = [
+            (name, lat, lon, tz)
+            for name, (lat, lon, tz) in CITIES.items()
+            if tz == dev_tz_str
+        ]
+        if matches:
+            name, lat, lon, tz = random.choice(matches)
+            info(f"Timezone {dev_tz_str} -> {name}")
+            return lat, lon, name
+    except:
+        pass
+    return random_city()
+
+
+def get_auto_gps():
+    """Smart GPS detection with diagnostics"""
+    online = check_internet()
+    info(f"Internet: {'Online' if online else 'Offline'}")
+
+    has_api = check_termux_api()
+
+    if has_api:
+        if online:
+            providers    = [("gps", 8), ("network", 4)]
+            total_budget = 12
+        else:
+            providers    = [("gps", 8), ("passive", 4)]
+            total_budget = 12
+
+        start = time.time()
+        for provider, budget in providers:
+            if time.time() - start >= total_budget:
+                break
+            remaining = min(budget, total_budget - (time.time() - start))
+            rc, out, stderr = _run_with_spinner(
+                f"GPS ({provider})...",
+                ["termux-location", "-p", provider, "-r", "once"],
+                remaining
+            )
+            if rc == 0 and out.strip():
+                try:
+                    data = json.loads(out)
+                    lat  = str(data.get("latitude",  ""))
+                    lon  = str(data.get("longitude", ""))
+                    acc  = data.get("accuracy", "?")
+                    if lat and lon and float(lat) != 0.0:
+                        ok(f"GPS ({provider}): {lat}, {lon}  acc={acc}m")
+                        return lat, lon, "GPS Auto"
+                    else:
+                        warn(f"GPS ({provider}): coordinates are 0.0")
+                except Exception as e:
+                    warn(f"GPS ({provider}): parse error - {e}")
+            else:
+                diag = stderr.strip()[:100] if stderr.strip() else "no output / timeout"
+                warn(f"GPS ({provider}): {diag}")
+
+    if online:
+        # Try WiFi + tower location first (faster than IP)
+        info("Trying WiFi/Tower location...")
+        lat, lon, label = get_location_wifi_tower()
+        if lat:
+            ok(f"WiFi/Tower: {label} ({lat}, {lon})")
+            return lat, lon, label
+
+        info("Trying IP-based location...")
+        lat, lon, label = get_location_by_ip()
+        if lat:
+            ok(f"IP location: {label} ({lat}, {lon})")
+            return lat, lon, label
+        warn("IP location failed")
+
+    warn("Using timezone-based location...")
+    return get_location_by_timezone()
+
+
 
 # ─────────────────────────────────────────────
 # 🎬 VIDEO Processing (ffmpeg + exiftool)
@@ -553,38 +834,59 @@ def inject_icc_via_xmp(output_path, brand, model, tools):
     ], capture_output=True)
 
 
-def get_timezone_offset(lat_f, lon_f):
+def get_timezone_offset(lat_f=None, lon_f=None):
     """
-    Get UTC offset in seconds for given GPS coordinates.
-    Uses timezonefinder if available, else falls back to device timezone.
+    Get timezone from GPS coordinates via online API.
+    Falls back to device timezone if offline or API fails.
     """
-    try:
-        from timezonefinder import TimezoneFinder
-        import zoneinfo
-        tf  = TimezoneFinder()
-        tz_name = tf.timezone_at(lat=lat_f, lng=lon_f)
-        if tz_name:
-            tz  = zoneinfo.ZoneInfo(tz_name)
-            loc_now = datetime.now(tz)
-            offset  = loc_now.utcoffset()
-            total_s = int(offset.total_seconds())
-            h, m    = divmod(abs(total_s) // 60, 60)
-            sign    = "+" if total_s >= 0 else "-"
-            tz_str  = f"{sign}{h:02d}:{m:02d}"
-            return loc_now, tz_str, tz_name
-    except ImportError:
-        pass
-    except Exception:
-        pass
+    if lat_f is not None and lon_f is not None:
+        # Try TimeZoneDB API (free, no key needed for basic)
+        apis = [
+            f"http://api.timezonedb.com/v2.1/get-time-zone?key=VGSWLNI6Y62E&format=json&by=position&lat={lat_f}&lng={lon_f}",
+            f"https://timeapi.io/api/timezone/coordinate?latitude={lat_f}&longitude={lon_f}",
+        ]
+        for url in apis:
+            try:
+                import urllib.request
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode())
+
+                    # TimeZoneDB response
+                    if "gmtOffset" in data:
+                        total_s = int(data["gmtOffset"])
+                        h, m    = divmod(abs(total_s) // 60, 60)
+                        sign    = "+" if total_s >= 0 else "-"
+                        tz_str  = f"{sign}{h:02d}:{m:02d}"
+                        tz_name = data.get("zoneName", tz_str)
+                        from datetime import timezone as _tz, timedelta
+                        tz      = _tz(timedelta(seconds=total_s))
+                        loc_now = datetime.now(tz)
+                        ok(f"Timezone: {tz_name} ({tz_str})")
+                        return loc_now, tz_str, tz_name
+
+                    # timeapi.io response
+                    if "utcOffset" in data:
+                        tz_str  = data["utcOffset"]    # e.g. "+06:00"
+                        tz_name = data.get("timeZone", tz_str)
+                        try:
+                            sign = 1 if tz_str[0] == "+" else -1
+                            h, m = map(int, tz_str[1:].split(":"))
+                            from datetime import timezone as _tz, timedelta
+                            tz      = _tz(timedelta(hours=h, minutes=m) * sign)
+                            loc_now = datetime.now(tz)
+                            ok(f"Timezone: {tz_name} ({tz_str})")
+                            return loc_now, tz_str, tz_name
+                        except:
+                            pass
+            except:
+                pass
 
     # Fallback: device timezone
     now_local = datetime.now().astimezone()
-    tz_offset = now_local.strftime('%z')
-    tz_str    = tz_offset[:3] + ":" + tz_offset[3:]
-    import time as _time
-    tz_name   = _time.tzname[0]
-    return now_local, tz_str, tz_name
-
+    raw    = now_local.strftime('%z')
+    tz_str = raw[:3] + ":" + raw[3:]
+    return now_local, tz_str, tz_str
 
 def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
     fname = os.path.basename(file_path)
@@ -606,9 +908,9 @@ def process_image(file_path, brand, model, lat, lon, output_path, tools, now):
     dt_str    = loc_now.strftime('%Y:%m:%d %H:%M:%S')
     dt_tz_str = dt_str + tz_str                        # 2026:04:04 12:57:49+06:00
 
-    # GPS timestamp always UTC
-    import datetime as _dt
-    utc_now   = datetime.utcnow()
+    # GPS timestamp always UTC (timezone-aware, no deprecation warning)
+    from datetime import timezone as _tz_utc
+    utc_now = datetime.now(_tz_utc.utc)
 
     if tools["exiftool"]:
         lat_ref = "N" if lat_f >= 0 else "S"
@@ -721,6 +1023,10 @@ def verify_metadata(file_path, tools):
 def main():
     os.system("clear")
     banner()
+
+    # ── Auto Update Check ──
+    section("Update Check")
+    check_update()
 
     tools = check_tools()
 
@@ -962,18 +1268,8 @@ def main():
 
     city_name = ""
     if gps_choice == "1":
-        info("Trying GPS (termux-location)...")
         lat, lon, city_name = get_auto_gps()
-        if lat and lon:
-            ok(f"GPS detected: {lat}, {lon}")
-        else:
-            warn("GPS failed → trying network location (IP-based)...")
-            lat, lon, city_name = get_network_location()
-            if lat and lon:
-                ok(f"Network location: {city_name} ({lat}, {lon})")
-            else:
-                warn("Network failed → using random city")
-                lat, lon, city_name = random_city()
+        ok(f"Location: {city_name} ({lat}, {lon})")
     elif gps_choice == "2":
         lat, lon, city_name = random_city()
     elif gps_choice == "3":
@@ -992,14 +1288,14 @@ def main():
             for n in nums:
                 if n-1 < len(city_list):
                     c = city_list[n-1]
-                    lat_c, lon_c = CITIES[c]
+                    lat_c, lon_c, _tz_c = CITIES[c]
                     print(color(f"    [{n:>2}]", C.CYAN, C.BOLD) +
                           color(f"  {c:30s}", C.WHITE) +
                           color(f"({lat_c}, {lon_c})", C.DIM))
         cidx = prompt("Enter city number:")
         try:
             city_name = city_list[int(cidx) - 1]
-            lat, lon = CITIES[city_name]
+            lat, lon, _tz_sel = CITIES[city_name]
             ok(f"Selected: {city_name}")
         except:
             warn("Invalid → random city")
