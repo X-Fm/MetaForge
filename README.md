@@ -1,4 +1,4 @@
-# Meta Forge v2.3
+# Meta Forge v2.5
 EXIF | GPS | Device Metadata Injector
 
 Developer : Forrukh (FmIt)
