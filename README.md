@@ -1,7 +1,7 @@
 # Meta Forge v2.1
 EXIF | GPS | Device Metadata Injector
 
-Developer : Forrukh
+Developer : Forrukh (FmIt)
 Contact   : https://t.me/fmitofficial
 GitHub    : https://github.com/X-Fm/MetaForge
 
@@ -14,12 +14,14 @@ GitHub    : https://github.com/X-Fm/MetaForge
 
 - Inject device info (Make, Model) into video and image files
 - Inject GPS coordinates (Auto / Random City / City List / Manual)
-- 50+ world cities across all continents
+- 50+ world cities across all continents with correct timezones
 - 30+ latest phone models (Samsung, Apple, Xiaomi, OPPO, Google, etc.)
 - Dual-tool processing: exiftool (primary) + ffmpeg + PIL fallback
 - Animated green progress bar (0-100%)
-- Auto output filename: VID02042026155823.mp4 / IMG02042026155823.jpg
-- Network-based location fallback (IP geolocation)
+- Auto output filename: VID20260404112703.mp4 / IMG20260404112713.jpg
+- Smart GPS detection: GPS chip → WiFi/Tower → IP → Timezone fallback
+- Auto update system: checks GitHub on every run
+- Exit/Back option at every step
 
 ---
 
@@ -27,6 +29,16 @@ GitHub    : https://github.com/X-Fm/MetaForge
 
     Video : .mp4  .mov  .mkv
     Image : .jpg  .jpeg  .png
+
+---
+
+## Output File Naming
+
+    Video : VID + YYYYMMDD + HHMMSS + ext   ->   VID20260404112703.mp4
+    Image : IMG + YYYYMMDD + HHMMSS + ext   ->   IMG20260404112713.jpg
+
+    Termux output : /sdcard/meta/
+    Linux output  : ./meta_output/
 
 ---
 ---
@@ -43,7 +55,7 @@ GitHub    : https://github.com/X-Fm/MetaForge
 
 ### Step 2 - Install required packages
 
-    pkg install python ffmpeg exiftool git -y
+    pkg install python ffmpeg exiftool git termux-api -y
 
 ---
 
@@ -73,11 +85,11 @@ GitHub    : https://github.com/X-Fm/MetaForge
 
 ### Termux - All steps in one block (copy and paste)
 
-    pkg update && pkg upgrade -y && pkg install python ffmpeg exiftool git -y && git clone https://github.com/X-Fm/MetaForge.git && cd MetaForge && pip install -r requirements.txt --break-system-packages && python meta_forge.py
+    pkg update && pkg upgrade -y && pkg install python ffmpeg exiftool git termux-api -y && git clone https://github.com/X-Fm/MetaForge.git && cd MetaForge && pip install -r requirements.txt --break-system-packages && python meta_forge.py
 
 ---
 
-### Termux - Global Install (run from anywhere)
+### Termux - Global Install (run from anywhere as "metaforge")
 
 Step 1 - Make the script executable:
 
@@ -90,6 +102,11 @@ Step 2 - Copy to system PATH:
 Step 3 - Now run from anywhere:
 
     metaforge
+
+Step 4 - Auto update works with global install too:
+
+    metaforge
+    # If update available -> downloads and replaces $PREFIX/bin/metaforge automatically
 
 Uninstall:
 
@@ -143,14 +160,84 @@ Uninstall:
     sudo apt update && sudo apt upgrade -y && sudo apt install python3 python3-pip ffmpeg libimage-exiftool-perl git -y && git clone https://github.com/X-Fm/MetaForge.git && cd MetaForge && pip3 install -r requirements.txt && python3 meta_forge.py
 
 ---
+
+### Linux - Global Install (run from anywhere as "metaforge")
+
+Step 1 - Make the script executable:
+
+    chmod +x meta_forge.py
+
+Step 2 - Copy to system PATH:
+
+    sudo cp meta_forge.py /usr/local/bin/metaforge
+
+Step 3 - Now run from anywhere:
+
+    metaforge
+
+Step 4 - Auto update works with global install too:
+
+    metaforge
+    # If update available -> downloads and replaces /usr/local/bin/metaforge automatically
+
+Uninstall:
+
+    sudo rm /usr/local/bin/metaforge
+
+---
 ---
 
-## Output File Naming
+## Auto Update System
 
-    Video : VID + date + time + ext   ->   VID02042026155823.mp4
-    Image : IMG + date + time + ext   ->   IMG02042026155823.jpg
+Every time MetaForge runs, it checks GitHub for a newer version.
 
-Output files are saved in ./meta_output/ folder by default.
+If an update is found:
+
+    Current : v2.1
+    Latest  : v2.2
+    Auto update now? [y/n/q]: y
+    -> Downloads new version
+    -> Creates backup of old version (meta_forge.py.backup)
+    -> Replaces current script automatically
+    -> Works for both direct run and global install
+
+---
+
+## GPS Location Detection (Auto mode)
+
+MetaForge tries to get your real location in this order:
+
+    1. GPS chip (offline, most accurate)      up to 8s
+    2. Network/Tower GPS (online)             up to 4s
+    3. WiFi scan + Google Geolocation         up to 4s
+    4. IP-based geolocation (3 APIs)          up to 3s each
+    5. Timezone-based city (device timezone)  instant
+    6. Random city                            fallback
+
+---
+
+## Requirements
+
+    Tool        Purpose                         Install
+    ---------   ---------------------------     -----------------------------------
+    python3     Run the script                  pkg install python
+    ffmpeg      Video encode + metadata         pkg install ffmpeg
+    exiftool    EXIF/metadata injection         pkg install exiftool
+    termux-api  GPS + WiFi location             pkg install termux-api
+    Pillow      Image fallback processing       pip install Pillow
+    piexif      EXIF write for images           pip install piexif
+
+---
+
+## Quick One-Line Setup
+
+Termux:
+
+    pkg update -y && pkg install python ffmpeg exiftool git termux-api -y && pip install Pillow piexif --break-system-packages
+
+Linux / Ubuntu / Kali:
+
+    sudo apt update && sudo apt install python3 python3-pip ffmpeg libimage-exiftool-perl git -y && pip3 install Pillow piexif
 
 ---
 
@@ -159,7 +246,8 @@ Output files are saved in ./meta_output/ folder by default.
 - If exiftool is not installed, the script falls back to Pillow + piexif for images.
 - If ffmpeg is not installed, the script copies the original video and applies exiftool only.
 - GPS auto-detection requires termux-api package and Termux:API app on Android.
-- If GPS fails, the script automatically detects location via network (IP-based).
+- Auto update requires internet connection.
+- Backup of previous version is always saved before updating.
 
 For GPS auto-detect in Termux:
 
@@ -175,24 +263,4 @@ For GPS auto-detect in Termux:
 
 ---
 
-Meta Forge v2.1 - Forrukh | t.me/fmitofficial | github.com/X-Fm/MetaForge
-
----
-
-### Linux - Global Install (run from anywhere)
-
-Step 1 - Make the script executable:
-
-    chmod +x meta_forge.py
-
-Step 2 - Copy to system PATH:
-
-    sudo cp meta_forge.py /usr/local/bin/metaforge
-
-Step 3 - Now run from anywhere:
-
-    metaforge
-
-Uninstall:
-
-    sudo rm /usr/local/bin/metaforge
+Meta Forge v2.1 - Forrukh (FmIt) | t.me/fmitofficial | github.com/X-Fm/MetaForge
