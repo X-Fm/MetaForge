@@ -178,16 +178,19 @@ def check_update():
 
         # Download new version
         info("Downloading update...")
-        script_path = os.path.abspath(__file__)
-        prefix_bin  = os.path.join(os.environ.get("PREFIX", "/usr"), "bin", "metaforge")
-        usr_bin     = "/usr/local/bin/metaforge"
-        try:
-            if os.path.exists(prefix_bin) and os.path.samefile(script_path, prefix_bin):
-                script_path = prefix_bin
-            elif os.path.exists(usr_bin) and os.path.samefile(script_path, usr_bin):
-                script_path = usr_bin
-        except:
-            pass
+        import stat
+        running_path = os.path.abspath(__file__)
+        prefix_bin   = os.path.join(os.environ.get("PREFIX", "/usr"), "bin", "metaforge")
+        usr_bin      = "/usr/local/bin/metaforge"
+
+        # Collect all locations to update
+        paths_to_update = set()
+        paths_to_update.add(os.path.realpath(running_path))
+        for gpath in [prefix_bin, usr_bin]:
+            if os.path.exists(gpath):
+                paths_to_update.add(os.path.realpath(gpath))
+
+        script_path = running_path
         backup_path = script_path + ".backup"
 
         req2 = urllib.request.Request(
@@ -207,9 +210,18 @@ def check_update():
         shutil.copy2(script_path, backup_path)
         bar.update(85, label="Backup created...", duration=0.2)
 
-        # Write new version
-        with open(script_path, 'wb') as f:
-            f.write(new_code)
+        # Write new version to ALL locations
+        updated_paths = []
+        for upath in paths_to_update:
+            try:
+                shutil.copy2(upath, upath + ".backup")
+                with open(upath, 'wb') as f:
+                    f.write(new_code)
+                st = os.stat(upath)
+                os.chmod(upath, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+                updated_paths.append(upath)
+            except Exception as e:
+                warn(f"Could not update {upath}: {e}")
 
         bar.finish(label="Update complete ✔")
         ok(f"Updated to v{latest}")
@@ -232,7 +244,7 @@ def banner():
 ║  ██╔████╔██║█████╗     ██║   ███████║                 ║
 ║  ██║╚██╔╝██║██╔══╝     ██║   ██╔══██║                 ║
 ║  ██║ ╚═╝ ██║███████╗   ██║   ██║  ██║                 ║
-║  ╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝  FORGE v2.1   ║
+║  ╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝  FORGE v2.2   ║
 ╠══════════════════════════════════════════════════════╣
 ║       EXIF • GPS • Device Metadata Injector          ║
 ╠══════════════════════════════════════════════════════╣
@@ -1031,13 +1043,14 @@ def verify_metadata(file_path, tools):
 # ─────────────────────────────────────────────
 # 🚀 MAIN
 # ─────────────────────────────────────────────
-def main():
+def main(skip_update=False):
     os.system("clear")
     banner()
 
-    # ── Auto Update Check ──
-    section("Update Check")
-    check_update()
+    # ── Auto Update Check (only on first run) ──
+    if not skip_update:
+        section("Update Check")
+        check_update()
 
     tools = check_tools()
 
@@ -1422,7 +1435,7 @@ def main():
     # Run again or exit
     again = prompt("Process more files? [y/n]:", "n")
     if again.lower() == "y":
-        main()
+        main(skip_update=True)
 
 if __name__ == "__main__":
     main()
