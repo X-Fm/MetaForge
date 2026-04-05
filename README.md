@@ -47,6 +47,24 @@ GitHub    : https://github.com/X-Fm/MetaForge
 
 ---
 
+## ⚡ Easy Install (Recommended)
+
+Clone the repo and run the installer.
+It will install all dependencies and add `metaforge` as a global command automatically:
+
+    git clone https://github.com/X-Fm/MetaForge.git
+    cd MetaForge
+    chmod +x install.sh
+    ./install.sh
+
+After install, run from anywhere:
+
+    metaforge
+
+---
+
+## Manual Install (Step by Step)
+
 ### Step 1 - Update Termux packages
 
     pkg update && pkg upgrade -y
@@ -89,7 +107,7 @@ GitHub    : https://github.com/X-Fm/MetaForge
 
 ---
 
-### Termux - Global Install (run from anywhere as "metaforge")
+### Termux - Global Install (manual)
 
 Step 1 - Make the script executable:
 
@@ -103,11 +121,6 @@ Step 3 - Now run from anywhere:
 
     metaforge
 
-Step 4 - Auto update works with global install too:
-
-    metaforge
-    # If update available -> downloads and replaces $PREFIX/bin/metaforge automatically
-
 Uninstall:
 
     rm $PREFIX/bin/metaforge
@@ -118,6 +131,24 @@ Uninstall:
 # LINUX (Debian / Ubuntu / Kali)
 
 ---
+
+## ⚡ Easy Install (Recommended)
+
+Clone the repo and run the installer.
+It will install all dependencies and add `metaforge` as a global command automatically:
+
+    git clone https://github.com/X-Fm/MetaForge.git
+    cd MetaForge
+    chmod +x install.sh
+    ./install.sh
+
+After install, run from anywhere:
+
+    metaforge
+
+---
+
+## Manual Install (Step by Step)
 
 ### Step 1 - Update system packages
 
@@ -161,7 +192,7 @@ Uninstall:
 
 ---
 
-### Linux - Global Install (run from anywhere as "metaforge")
+### Linux - Global Install (manual)
 
 Step 1 - Make the script executable:
 
@@ -174,11 +205,6 @@ Step 2 - Copy to system PATH:
 Step 3 - Now run from anywhere:
 
     metaforge
-
-Step 4 - Auto update works with global install too:
-
-    metaforge
-    # If update available -> downloads and replaces /usr/local/bin/metaforge automatically
 
 Uninstall:
 
@@ -193,8 +219,8 @@ Every time MetaForge runs, it checks GitHub for a newer version.
 
 If an update is found:
 
-    Current : v2.1
-    Latest  : v2.2
+    Current : v2.4
+    Latest  : v2.5
     Auto update now? [y/n/q]: y
     -> Downloads new version
     -> Creates backup of old version (meta_forge.py.backup)
@@ -263,4 +289,4 @@ For GPS auto-detect in Termux:
 
 ---
 
-Meta Forge v2.1 - Forrukh (FmIt) | t.me/fmitofficial | github.com/X-Fm/MetaForge
+Meta Forge v2.5 - Forrukh (FmIt) | t.me/fmitofficial | github.com/X-Fm/MetaForge
