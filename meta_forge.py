@@ -169,7 +169,9 @@ def check_update():
         print(color(f"  │  Latest  : v{latest:<38}│", C.GREEN, C.BOLD))
         print(color(f"  └────────────────────────────────────────────────┘", C.YELLOW))
 
-        choice = prompt("Auto update now? [y/n]:", "y")
+        choice = prompt("Auto update now? [y/n/q(quit)]:", "y")
+        if choice.lower() == "q":
+            print(color("\n  Goodbye!\n", C.CYAN, C.BOLD)); exit(0)
         if choice.lower() != "y":
             info("Skipping update...")
             return False
@@ -177,6 +179,15 @@ def check_update():
         # Download new version
         info("Downloading update...")
         script_path = os.path.abspath(__file__)
+        prefix_bin  = os.path.join(os.environ.get("PREFIX", "/usr"), "bin", "metaforge")
+        usr_bin     = "/usr/local/bin/metaforge"
+        try:
+            if os.path.exists(prefix_bin) and os.path.samefile(script_path, prefix_bin):
+                script_path = prefix_bin
+            elif os.path.exists(usr_bin) and os.path.samefile(script_path, usr_bin):
+                script_path = usr_bin
+        except:
+            pass
         backup_path = script_path + ".backup"
 
         req2 = urllib.request.Request(
@@ -1034,7 +1045,10 @@ def main():
     section("File Selection")
     print(color("  [1]", C.CYAN, C.BOLD) + color("  Browse /sdcard (folder navigator)", C.WHITE))
     print(color("  [2]", C.CYAN, C.BOLD) + color("  Manual path input", C.WHITE))
-    file_mode = prompt("Select option [1/2]:", "1")
+    print(color("  [0]", C.CYAN, C.BOLD) + color("  Exit", C.WHITE))
+    file_mode = prompt("Select option [1/2/0]:", "1")
+    if file_mode == "0":
+        print(color("\n  Goodbye!\n", C.CYAN, C.BOLD)); exit(0)
 
     valid_files = []
     MEDIA_EXT = (".mp4", ".mov", ".mkv", ".jpg", ".jpeg", ".png")
@@ -1239,7 +1253,10 @@ def main():
         print(color(f"  ├{line}┤", C.YELLOW))
 
     print(color(f"  └{line}┘", C.YELLOW))
-    choice = prompt("Select device number:")
+    print(color("\n  [0]  Exit", C.YELLOW))
+    choice = prompt("Select device number [0=Exit]:")
+    if choice == "0":
+        print(color("\n  Goodbye!\n", C.CYAN, C.BOLD)); exit(0)
     if choice not in DEVICES:
         err("Invalid device choice"); exit(1)
 
@@ -1263,8 +1280,11 @@ def main():
         "2": "Random City",
         "3": "Choose from City List",
         "4": "Manual Coordinates",
+        "0": "Exit",
     }
     gps_choice = menu("GPS / Location", GPS_OPTS)
+    if gps_choice == "0":
+        print(color("\n  Goodbye!\n", C.CYAN, C.BOLD)); exit(0)
 
     city_name = ""
     if gps_choice == "1":
@@ -1398,6 +1418,11 @@ def main():
     print(color("  Output Files:", C.YELLOW, C.BOLD))
     print(color(files_str, C.GREEN))
     print(color("\n  ✦ META FORGE COMPLETE ✦\n", C.CYAN, C.BOLD))
+
+    # Run again or exit
+    again = prompt("Process more files? [y/n]:", "n")
+    if again.lower() == "y":
+        main()
 
 if __name__ == "__main__":
     main()
