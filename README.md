@@ -1,17 +1,16 @@
 # Meta Forge v2.5
 EXIF | GPS | Device Metadata Injector
 
-Developer : Forrukh (FmIt)
-[![Contact on Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram)](https://t.me/fmitofficial)
-GitHub    : https://github.com/X-Fm/MetaForge
+- Developer : Forrukh (FmIt)
+
+- [![Contact on Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram)](https://t.me/fmitofficial)
+
+- GitHub    : https://github.com/X-Fm/MetaForge
 
 
 ![Version](https://img.shields.io/badge/Version-2.5-00ff9c?style=for-the-badge)
-
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
-
 ![Platform](https://img.shields.io/badge/Platform-Termux%20|%20Linux-orange?style=for-the-badge)
-
 [![Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram&style=for-the-badge)](https://t.me/fmitofficial)
 
 
@@ -292,7 +291,7 @@ For GPS auto-detect in Termux:
 
 ---
 
-## Links
+🔗 Links
 
 - GitHub   : https://github.com/X-Fm/MetaForge
 - [![Contact on Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram)](https://t.me/fmitofficial)
