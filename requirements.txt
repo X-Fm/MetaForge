@@ -1,18 +1,18 @@
-# ─────────────────────────────────────────────
-# Meta Forge — Python Requirements
-# Developer : Forrukh | https://t.me/fmitofficial
-# ─────────────────────────────────────────────
+# Meta Forge v2.1 - Python Requirements
+# Developer : FmIt | Forrukh https://t.me/fmitofficial
+# GitHub    : https://github.com/X-Fm/MetaForge
 
 # Image EXIF read/write
 Pillow>=10.0.0
 piexif>=1.1.3
 
-# GPS timezone detection
-timezonefinder>=6.2.0
+# No other pip packages needed.
+# All other features use built-in Python modules:
+# urllib, json, subprocess, threading, datetime, os, shutil, random, sys, time
 
 # ─────────────────────────────────────────────
 # System packages (install separately):
 #
-# Termux  : pkg install ffmpeg exiftool python
-# Linux   : sudo apt install ffmpeg libimage-exiftool-perl python3
+# Termux  : pkg install python ffmpeg exiftool git termux-api
+# Linux   : sudo apt install python3 python3-pip ffmpeg libimage-exiftool-perl git
 # ─────────────────────────────────────────────
