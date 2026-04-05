@@ -1,4 +1,4 @@
-# Meta Forge v2.1 - Python Requirements
+# Meta Forge v2.5 - Python Requirements
 # Developer : FmIt | Forrukh https://t.me/fmitofficial
 # GitHub    : https://github.com/X-Fm/MetaForge
 
