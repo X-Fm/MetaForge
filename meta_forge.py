@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # ─────────────────────────────────────────────
-CURRENT_VERSION = "2.1"
+CURRENT_VERSION = "2.2"
 GITHUB_USER     = "X-Fm"
 GITHUB_REPO     = "MetaForge"
 VERSION_URL     = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/version.txt"
