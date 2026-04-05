@@ -5,6 +5,16 @@ Developer : Forrukh (FmIt)
 [![Contact on Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram)](https://t.me/fmitofficial)
 GitHub    : https://github.com/X-Fm/MetaForge
 
+
+![Version](https://img.shields.io/badge/Version-2.5-00ff9c?style=for-the-badge)
+
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+![Platform](https://img.shields.io/badge/Platform-Termux%20|%20Linux-orange?style=for-the-badge)
+
+[![Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram&style=for-the-badge)](https://t.me/fmitofficial)
+
+
 ![Meta Forge Screenshot 1](https://raw.githubusercontent.com/X-Fm/MetaForge/a38d5e699f5f96b8ded0c72520f4985850170e33/IMG_20260402_212531.jpg)
 ![Meta Forge Screenshot 2](https://raw.githubusercontent.com/X-Fm/MetaForge/a38d5e699f5f96b8ded0c72520f4985850170e33/IMG_20260402_212554.jpg)
 
