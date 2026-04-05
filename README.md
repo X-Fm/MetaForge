@@ -2,7 +2,7 @@
 EXIF | GPS | Device Metadata Injector
 
 Developer : Forrukh (FmIt)
-Contact   : https://t.me/fmitofficial
+[![Contact on Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram)](https://t.me/fmitofficial)
 GitHub    : https://github.com/X-Fm/MetaForge
 
 ![Meta Forge Screenshot 1](https://raw.githubusercontent.com/X-Fm/MetaForge/a38d5e699f5f96b8ded0c72520f4985850170e33/IMG_20260402_212531.jpg)
