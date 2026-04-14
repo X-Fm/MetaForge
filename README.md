@@ -14,8 +14,8 @@ EXIF | GPS | Device Metadata Injector
 [![Telegram](https://img.shields.io/badge/Telegram-Contact-blue?logo=telegram&style=for-the-badge)](https://t.me/fmitofficial)
 
 
-![Meta Forge Screenshot 1](https://raw.githubusercontent.com/X-Fm/MetaForge/a38d5e699f5f96b8ded0c72520f4985850170e33/IMG_20260402_212531.jpg)
-![Meta Forge Screenshot 2](https://raw.githubusercontent.com/X-Fm/MetaForge/a38d5e699f5f96b8ded0c72520f4985850170e33/IMG_20260402_212554.jpg)
+![IMG_20260402_212531](https://github.com/user-attachments/assets/56d11dc9-e580-4f67-96ab-c621c5ba2cae)
+![IMG_20260402_212554](https://github.com/user-attachments/assets/c479ce00-bbd1-46e0-8cf0-a987ec189260)
 
 ---
 
