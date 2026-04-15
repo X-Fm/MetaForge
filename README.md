@@ -228,8 +228,8 @@ Every time MetaForge runs, it checks GitHub for a newer version.
 
 If an update is found:
 
-    Current : v2.4
-    Latest  : v2.5
+    Current : v2.5
+    Latest  : v2.6
     Auto update now? [y/n/q]: y
     -> Downloads new version
     -> Creates backup of old version (meta_forge.py.backup)
