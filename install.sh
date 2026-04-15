@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ╔══════════════════════════════════════════════════════╗
-# ║         META FORGE - Installer Script v2.5           ║
+# ║         META FORGE - Installer Script v2.6           ║
 # ║              Developer: Forrukh (FmIt)               ║
 # ╚══════════════════════════════════════════════════════╝
 
